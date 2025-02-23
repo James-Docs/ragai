@@ -39,10 +39,23 @@ class QueryEngine:
             print(f"🟡 Backend: Retrieving content from Elasticsearch...")
             search_body = {
                 "query": {
-                    "terms": {
-                        "embedding_id": indices[0].tolist()
+                    "bool": {
+                        "should": [
+                            {  # ✅ Retrieve documents that match FAISS results
+                                "terms": {
+                                    "embedding_id": indices[0].tolist()
+                                }
+                            },
+                            {  # ✅ ALSO retrieve documents that contain the query text
+                                "match": {
+                                    "content": query_text
+                                }
+                            }
+                        ],
+                        "minimum_should_match": 1  # Ensure at least one condition is met
                     }
-                }
+                },
+                "size": 3  # Restrict to top 3 most relevant results
             }
 
             response = self.es_client.es.search(
@@ -54,13 +67,29 @@ class QueryEngine:
             if hits:
                 print(f"🟡 Backend: Found {len(hits)} matching documents in Elasticsearch")
                 relevant_content = [hit['_source']['content'] for hit in hits]
-                context = "\n".join(relevant_content)
+                # context = "\n".join(relevant_content)
+                context = "\n".join(relevant_content[:2])  # Only keep top 2 most relevant
                 
                 # Query Ollama
                 print(f"🟡 Backend: Querying Ollama...")
+
+                prompt = f"""
+                            Based on the following retrieved information:
+                {context}
+
+                 Only use this context to answer the question:
+                {query_text}
+                If the context does not answer the question, say "I don’t know based on the given information."
+                """
+
+                # payload = {
+                #     "model": "mistral",
+                #     "prompt": f"Context: {context}\n\nQuestion: {query_text}\n\nAnswer:",
+                #     "stream": False
+                # }
                 payload = {
                     "model": "mistral",
-                    "prompt": f"Context: {context}\n\nQuestion: {query_text}\n\nAnswer:",
+                    "prompt": prompt,
                     "stream": False
                 }
                 
@@ -70,9 +99,7 @@ class QueryEngine:
                 
                 if 'response' in response_json:
                     print(f"🟡 Backend: Returning response from Ollama")
-                    result = {
-                        'results': [response_json['response'].strip()],
-                    }
+                    result = {'results': [response_json['response'].strip()]}
                     
                     # Cache the result in Redis
                     self.redis_client.set_cache(query_text, result)
