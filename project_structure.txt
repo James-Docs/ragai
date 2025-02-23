@@ -1,0 +1,23 @@
+rag_app/
+├── app/
+│   ├── __init__.py
+│   ├── config.py
+│   ├── core/
+│   │   ├── __init__.py
+│   │   ├── document_processor.py
+│   │   ├── embeddings.py
+│   │   ├── indexer.py
+│   │   └── query_engine.py
+│   ├── api/
+│   │   ├── __init__.py
+│   │   └── routes.py
+│   ├── storage/
+│   │   ├── __init__.py
+│   │   ├── elasticsearch_client.py
+│   │   ├── faiss_client.py
+│   │   └── redis_client.py
+│   └── utils/
+│       ├── __init__.py
+│       └── text_utils.py
+├── requirements.txt
+└── run.py 
